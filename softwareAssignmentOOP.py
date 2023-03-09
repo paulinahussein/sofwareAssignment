@@ -14,6 +14,14 @@ import pprint
 import numpy as np
 from numpy.linalg import norm
 
+
+class Math:
+    @staticmethod #similarity of two vectors
+    def sim(a, b):
+        if norm(a) * norm(b) != 0:
+            return np.dot(a, b) / (norm(a) * norm(b))
+            # ? oder Fehler ?
+
 class SearchEngine:
     def __init__(self, collectionName, create):
         '''
@@ -31,8 +39,7 @@ class SearchEngine:
         impossible for us to test your program automatically!
         '''
         self.collectionName=collectionName
-        self.a=0 #idf
-        self.b=0 #tf
+
         if create==True:
             print("Creating index...")
 
@@ -96,14 +103,14 @@ class SearchEngine:
 
         def maximumocc(doc):
             'maximum occurrences of any term in doc'
-            self.numdoc = {}
+            numdoc = {}
             for word in set(self.dic[doc]):
                 # count each word
-                self.numdoc[word] = 0
+                numdoc[word] = 0
                 for i in self.dic[doc]:
                     if word == i:
-                        self.numdoc[word] += 1
-            m = max(self.numdoc.values(), key=lambda x: x, default=0)  # max by value
+                        numdoc[word] += 1
+            m = max(numdoc.values(), key=lambda x: x, default=0)  # max by value
             return m
 
         self.maxocc = {}
@@ -120,75 +127,63 @@ class SearchEngine:
 
 
         # weight vector (tf.idf for each word in doc) for each doc (matrix)
+        #dict[doc id]=[List of tfidf scores for word at position i], i referring to the globallist
 
-        self.globalset=set()
+        self.globalset = set()
         for doc in self.dic:
             for word in self.dic[doc]:
                 self.globalset.add(word)
-        self.globallist=list(self.globalset)
+        self.globallist = list(self.globalset)
 
-        #Liste mit doc ids
-        self.doclist=list(self.dic.keys())
+        self.tidict={}
+        for key in self.dic.keys():
+            self.tidict[key]=np.zeros(len(self.globallist))
+        for key in self.tidict.keys():
+            for i in range(len(self.tidict[key])):
+                self.tidict[key][i]=self.tfidf(self.globallist[i], self.tidict[key]) #term, doc
 
-        #Matrix mit horizontalen Doc-Vektoren, vertikalem Vokabular
-        self.D=np.zeros((self.numdocs, len(self.globallist)))
-        print(self.globallist[0])
-        print(self.doclist[0])
-        print(self.tfidf(self.globallist[0], self.doclist[0]))
-        print(self.tfidf('champion', 'NYT_ENG_19950101.0001'))  # funktioniert :)
 
-        # das hier dauert sehr lange
-        #tfidf score in die arrays schreiben: horizontal die docs, vertikal das Vokabular self.globallist
-        for i in range(len(self.doclist)):
-            for j in range(len(self.globallist)):
-                if self.globallist[j] in self.dic[self.doclist[i]]:
-                    self.D[i][j] = self.tfidf(self.globallist[j], self.doclist[i])
-        print(self.D)
+        pprint.pprint(self.tidict)
+
         print("Done.")
-
 
     def idf(self, term):
         'log(number of all documents/number of documents that contain term)'
-        self.numdocs = 0 #instance attribute defined outside __init__
-        self.numdocsterm = 0
+        numdocs = 0 # keine instance attributes mehr
+        numdocsterm = 0
         for doc in self.dic.keys():
-            self.numdocs += 1
+            numdocs += 1
             if term in self.dic[doc]:
-                self.numdocsterm += 1
-        return math.log(self.numdocs / self.numdocsterm)
-
-
+                numdocsterm += 1
+        return math.log(numdocs / numdocsterm)
 
     def tf(self, term, doc):
         'number of times term occurs in doc/maximum occurrences of any term in doc'
-
-        self.numofterm = 0
+        numofterm = 0
         for word in self.dic[doc]:
             if word == term:
-                self.numofterm += 1
-        return self.numofterm / 100 #self.maxocc[doc] #oder maxocc[doc] als dict, sodass maxocc[doc]=maximumocc(doc) -> dict schneller
-
+                numofterm += 1
+        return numofterm / 100 #self.maxocc[doc] #oder maxocc[doc] als dict, sodass maxocc[doc]=maximumocc(doc) -> dict schneller
 
     def tfidf(self, term, doc):
         # look up idf(term)
-        idffile=open(self.collectionName + '.idf', 'r')
-        for line in idffile.readlines():
-            if line.split("\t")[0] == term:
-                self.a+=float(line.split("\t")[1])
-        # look up tf(term, doc)
-        tffile=open(self.collectionName + '.tf', 'r')
-        for line in tffile.readlines():
-            if line.split("\t")[0] == doc:
-                if line.split("\t")[1] == term:
-                    self.b+= float(line.split("\t")[2]) #instance attribute defined outside __init__
-        return self.a * self.b
+        def readidf(term):
+            idffile=open(self.collectionName + '.idf', 'r')
+            for line in idffile.readlines():
+                if line.split("\t")[0] == term:
+                    return float(line.split("\t")[1])
+        def readtf(term, doc):
+            tffile=open(self.collectionName + '.tf', 'r')
+            for line in tffile.readlines():
+                if line.split("\t")[0] == doc:
+                    if line.split("\t")[1] == term:
+                        print(type(line.split("\t")[1]))
+                        print(type(line.split("\t")[2]))
+                        return float(line.split("\t")[2])
+        return readidf(term)*readtf(term, doc)
 
 
-    @staticmethod
-    def sim(a, b):
-        if norm(a)*norm(b)!=0:
-            return np.dot(a, b) / (norm(a) * norm(b))
-            #? oder Fehler ?
+
 
     def executeQuery(self, queryTerms):
         '''
@@ -203,32 +198,35 @@ class SearchEngine:
         May be less than 10 documents if there aren't as many documents
         that contain the terms.
         '''
-        self.queryTerms=[stem(word) for word in queryTerms] #stem, List Comprehension
+
+        queryTerms=[stem(word) for word in queryTerms] #stem, List Comprehension
         query=np.zeros(len(self.globallist)) #horizontaler Vektor der Länge des Vokabulars
-        self.queryset=set() #instance attribute defined outside __init__
+        queryset=set() #instance attribute defined outside __init__
         for word in queryTerms:
-            #word=stem(word)
-            self.queryset.add(word)
-        for word in self.queryset:
+            queryset.add(word)
+        for word in queryset:
             for i in range(len(self.globallist)):
                 if self.globallist[i]==word:
                     query[i]=self.tfidf(word, queryTerms) #tfidf Funktion muss Klassenfunktion sein
 
 
-        self.finaldict={} #instance attribute defined outside __init__
-        for i in range(len(self.doclist)):
-            self.finaldict[self.doclist[i]]=self.sim(self.D[i], query)
+        def display_results(self):
+            self.finaldict = {}  # instance attribute defined outside __init__
+            for key in self.tidict.keys():
+                self.finaldict[key] = Math.sim(self.self.tidict[key], query)
 
-        #pprint.pprint(self.finaldict)
+            # pprint.pprint(self.finaldict)
 
-        self.lst=list(self.finaldict.items()) #instance attribute defined outside __init__
-        self.lst.sort(key= lambda x:x[1])
+            self.lst = list(self.finaldict.items())  # instance attribute defined outside __init__
+            self.lst.sort(key=lambda x: x[1])
 
-        res="I found the following documents:\n"
-        for i in range(10):
-            if self.lst[i][1]!=0:
-                res+=self.lst[i][0]+" ("+str(self.lst[i][1])+"\n"
-        return res
+            res = "I found the following documents:\n"
+            for i in range(10):
+                if self.lst[i][1] != 0:
+                    res += self.lst[i][0] + " (" + str(self.lst[i][1]) + "\n"
+            return res
+
+        print(self.display_results)
 
 
 
@@ -257,7 +255,7 @@ class SearchEngine:
 
         self.finaldict = {} # instance attribute defined outside __init__
         for i in range(len(self.globallist)):
-            self.finaldict[self.doclist[i]] = self.sim(self.D[i], query)
+            self.finaldict[self.doclist[i]] = Math.sim(self.D[i], query)
 
         self.lst = list(self.finaldict.items())
         self.lst.sort(key=lambda x: x[1])
