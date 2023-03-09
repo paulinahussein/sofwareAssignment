@@ -45,7 +45,9 @@ class XMLInter:
 class SearchEngine:
     def __init__(self, collectionName, create):
         if create:
-            self.DOCT=XMLInter.__init__(collectionName).text#.add_text().del_punc().stem()
+            print("Creating index...")
+            self.doc=XMLInter(collectionName).dic
+            print('Done')
 
 
 xmltree=XMLInter("nytsmall")
@@ -54,5 +56,42 @@ pprint.pprint(xmltree.dic)
 xmltree.del_punc()
 xmltree.stem()
 pprint.pprint(xmltree.dic)'''
-#searchEngine = SearchEngine("nytsmall", True)
+searchEngine = SearchEngine("nytsmall", True)
+#pprint.pprint(searchEngine.xmlinter.dic)
+pprint.pprint(searchEngine.doc)
 #print(searchEngine.DOCT)
+
+
+def executeQueryConsole(self):
+    '''
+    When calling this, the interactive console should be started,
+    ask for queries and display the search results, until the user
+    simply hits enter.
+    '''
+    print("Please enter query, terms separated by whitespace: ")
+
+    # loop asking for query terms ?
+
+    self.queryTerms = input().split(" ")
+    self.queryTerms = [stem(word) for word in self.queryTerms]  # stem
+    query = np.zeros(len(self.globallist))  # horizontaler Vektor der Länge des Vokabulars
+    self.queryset = set()
+    for word in self.queryTerms:
+        # word = stem(word)
+        self.queryset.add(word)
+    for word in self.queryset:
+        for i in range(len(self.globallist)):
+            if self.globallist[i] == word:
+                query[i] = self.tf_idf(word, self.queryTerms)
+
+    self.finaldict = {}  # instance attribute defined outside __init__
+    for i in range(len(self.globallist)):
+        self.finaldict[self.doclist[i]] = Math.sim(self.D[i], query)
+
+    self.lst = list(self.finaldict.items())
+    self.lst.sort(key=lambda x: x[1])
+
+    res = "I found the following documents:\n"  # display function ?
+    for i in range(10):
+        res += self.lst[i][0] + " (" + str(self.lst[i][1]) + ") \n"
+    return res
